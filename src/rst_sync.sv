@@ -9,13 +9,11 @@ module rst_sync #(
     if (RST_SYNC_EN) begin: gen_enabled
         logic [DEPTH - 1 : 0] chain;
 
-        always @(posedge clk or negedge aresetn) begin
+        always_ff @(posedge clk or negedge aresetn) begin
             if (!aresetn) begin
-                chain <= '0';
-            end
-            else begin
-                chain[0] <= 1'b1;
-                chain[DEPTH - 2 : 0] <= chain[DEPTH - 1 : 1];
+                chain <= '0;
+            end else begin
+                chain <= {chain[DEPTH - 2 : 0], 1'b1};
             end
         end
 
