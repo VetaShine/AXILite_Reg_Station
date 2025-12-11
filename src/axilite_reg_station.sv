@@ -85,7 +85,7 @@ module axi4lite_reg_station #(
     ) u_irq_gen (
         .aclk   (aclk) ,
         .rstn   (reset),
-        .error_i(err_o),
+        .error_i(err_write_o || err_read_o),
         .irq_o  (irq_o)
     );
 
@@ -93,7 +93,7 @@ module axi4lite_reg_station #(
         .ADDR_WIDTH (ADDR_WIDTH_ACTUAL),
         .DATA_WIDTH (DATA_WIDTH_ACTUAL),
         .ERR_RESP_EN(ERR_RESP_EN)
-    ) u_protocol_chcker (
+    ) u_protocol_checker (
         .s_axi_awaddr (s_axi_awaddr) ,
         .s_axi_awvalid(s_axi_awvalid),
         .s_axi_awprot (s_axi_awprot) ,
@@ -154,3 +154,4 @@ module axi4lite_reg_station #(
         .m_axi_rready (m_axi_rready) ,
         .m_axi_rresp  (m_axi_rresp)
     );
+endmodule
