@@ -19,7 +19,7 @@ module irq_gen #(
                 active <= 1'b0;
                 irq_o  <= 1'b0;
             end else begin
-                if (error_i && !active) begin
+                if (error_i) begin
                     active <= 1'b1;
                     cnt    <= IRQ_HOLD_TIME - 1;
                     irq_o  <= 1'b1;
