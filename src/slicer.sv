@@ -1,4 +1,4 @@
-module axi4lite_reg_station #(
+module slicer #(
     parameter int ADDR_WIDTH    = 32,
     parameter int DATA_WIDTH    = 32
 ) (
@@ -57,70 +57,76 @@ module axi4lite_reg_station #(
     output logic                             m_axi_rready ,
     input  logic [1 : 0]                     m_axi_rresp
 );
-    reg [ADDR_WIDTH - 1 : 0]       aw_addr_0      ;
-    reg [ADDR_WIDTH - 1 : 0]       aw_addr_1      ;
-    reg [2 : 0]                    aw_prot_0      ;
-    reg [2 : 0]                    aw_prot_1      ;
-    reg [1 : 0]                    aw_fifo_status ;
-    reg                            aw_read        ;
-    reg                            aw_write       ;
+    logic [ADDR_WIDTH - 1 : 0]       aw_addr_0     ;
+    logic [ADDR_WIDTH - 1 : 0]       aw_addr_1     ;
+    logic [2 : 0]                    aw_prot_0     ;
+    logic [2 : 0]                    aw_prot_1     ;
+    logic [1 : 0]                    aw_fifo_status;
+    logic                            aw_read       ;
+    logic                            aw_write      ;
 
-    reg [DATA_WIDTH - 1 : 0]       w_data_0      ;
-    reg [DATA_WIDTH - 1 : 0]       w_data_1      ;
-    reg [(DATA_WIDTH / 8) - 1 : 0] w_strb_0      ;
-    reg [(DATA_WIDTH / 8) - 1 : 0] w_strb_1      ;
-    reg [1 : 0]                    w_fifo_status ;
-    reg                            w_read        ;
-    reg                            w_write       ;
+    logic [DATA_WIDTH - 1 : 0]       w_data_0      ;
+    logic [DATA_WIDTH - 1 : 0]       w_data_1      ;
+    logic [(DATA_WIDTH / 8) - 1 : 0] w_strb_0      ;
+    logic [(DATA_WIDTH / 8) - 1 : 0] w_strb_1      ;
+    logic [1 : 0]                    w_fifo_status ;
+    logic                            w_read        ;
+    logic                            w_write       ;
 
-    reg [1 : 0]                    b_resp_0      ;
-    reg [1 : 0]                    b_resp_1      ;
-    reg [1 : 0]                    b_fifo_status ;
-    reg                            b_read        ;
-    reg                            b_write       ;
+    logic [1 : 0]                    b_resp_0      ;
+    logic [1 : 0]                    b_resp_1      ;
+    logic [1 : 0]                    b_fifo_status ;
+    logic                            b_read        ;
+    logic                            b_write       ;
 
-    reg [ADDR_WIDTH - 1 : 0]       ar_addr_0     ;
-    reg [ADDR_WIDTH - 1 : 0]       ar_addr_1     ;
-    reg [2 : 0]                    ar_prot_0     ;
-    reg [2 : 0]                    ar_prot_1     ;
-    reg [1 : 0]                    ar_fifo_status;
-    reg                            ar_read       ;
-    reg                            ar_write      ;
+    logic [ADDR_WIDTH - 1 : 0]       ar_addr_0     ;
+    logic [ADDR_WIDTH - 1 : 0]       ar_addr_1     ;
+    logic [2 : 0]                    ar_prot_0     ;
+    logic [2 : 0]                    ar_prot_1     ;
+    logic [1 : 0]                    ar_fifo_status;
+    logic                            ar_read       ;
+    logic                            ar_write      ;
 
-    reg [DATA_WIDTH - 1 : 0]       r_data_0      ;
-    reg [DATA_WIDTH - 1 : 0]       r_data_1      ;
-    reg [1 : 0]                    r_resp_0      ;
-    reg [1 : 0]                    r_resp_1      ;
-    reg [1 : 0]                    r_fifo_status ;
-    reg                            r_read        ;
-    reg                            r_write       ;
+    logic [DATA_WIDTH - 1 : 0]       r_data_0      ;
+    logic [DATA_WIDTH - 1 : 0]       r_data_1      ;
+    logic [1 : 0]                    r_resp_0      ;
+    logic [1 : 0]                    r_resp_1      ;
+    logic [1 : 0]                    r_fifo_status ;
+    logic                            r_read        ;
+    logic                            r_write       ;
+
+    logic                            r_err_0       ;
+    logic                            r_err_1       ;
+    logic                            w_err_0       ;
+    logic                            w_err_1       ;
 
     assign aw_write_flag = s_axi_awvalid & s_axi_awready;
     assign aw_read_flag  = m_axi_awvalid & m_axi_awready;
-    assign aw_empty = (aw_fifo_status == 0);
-    assign aw_full  = aw_fifo_status[1];
+    assign aw_empty      = (aw_fifo_status == 0);
+    assign aw_full       = aw_fifo_status[1];
 
-    assign w_write_flag = s_axi_wvalid & s_axi_wready;
-    assign w_read_flag  = m_axi_wvalid & m_axi_wready;
-    assign w_empty = (w_fifo_status == 0);
-    assign w_full  = w_fifo_status[1];
+    assign w_write_flag  = s_axi_wvalid & s_axi_wready;
+    assign w_read_flag   = m_axi_wvalid & m_axi_wready;
+    assign w_empty       = (w_fifo_status == 0);
+    assign w_full        = w_fifo_status[1];
 
-    assign b_write_flag = m_axi_bvalid & m_axi_bready;
-    assign b_read_flag  = s_axi_bvalid & s_axi_bready;
-    assign b_empty = (b_fifo_status == 0);
-    assign b_full  = b_fifo_status[1];
+    assign b_write_flag  = m_axi_bvalid & m_axi_bready;
+    assign b_read_flag   = s_axi_bvalid & s_axi_bready;
+    assign b_empty       = (b_fifo_status == 0);
+    assign b_full        = b_fifo_status[1];
 
     assign ar_write_flag = s_axi_arvalid & s_axi_arready;
     assign ar_read_flag  = m_axi_arvalid & m_axi_arready;
-    assign ar_empty = (ar_fifo_status == 0);
-    assign ar_full  = ar_fifo_status[1];
+    assign ar_empty      = (ar_fifo_status == 0);
+    assign ar_full       = ar_fifo_status[1];
 
-    assign r_write_flag = m_axi_rvalid & m_axi_rready;
-    assign r_read_flag  = s_axi_rvalid & s_axi_rready;
-    assign r_empty = (r_fifo_status == 0);
-    assign r_full  = r_fifo_status[1];
+    assign r_write_flag  = m_axi_rvalid & m_axi_rready;
+    assign r_read_flag   = s_axi_rvalid & s_axi_rready;
+    assign r_empty       = (r_fifo_status == 0);
+    assign r_full        = r_fifo_status[1];
 
-    always @(posedge aclk or negedge aresetn) begin
+
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_read <= 1'b0;
         end else if (aw_read_flag) begin
@@ -128,7 +134,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_read <= 1'b0;
         end else if (w_read_flag) begin
@@ -136,7 +142,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_read <= 1'b0;
         end else if (b_read_flag) begin
@@ -144,7 +150,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_read <= 1'b0;
         end else if (ar_read_flag) begin
@@ -152,7 +158,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_read <= 1'b0;
         end else if (r_read_flag) begin
@@ -160,7 +166,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_write <= 1'b0;
         end else if (aw_write_flag) begin
@@ -168,7 +174,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_write <= 1'b0;
         end else if (w_write_flag) begin
@@ -176,7 +182,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_write <= 1'b0;
         end else if (b_write_flag) begin
@@ -184,7 +190,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_write <= 1'b0;
         end else if (ar_write_flag) begin
@@ -192,7 +198,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_write <= 1'b0;
         end else if (r_write_flag) begin
@@ -200,7 +206,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_fifo_status <= 2'b0;
         end else if (aw_write_flag & ~aw_read_flag) begin
@@ -210,7 +216,7 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_fifo_status <= 2'b0;
         end else if (w_write_flag & ~w_read_flag) begin
@@ -220,7 +226,7 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_fifo_status <= 2'b0;
         end else if (b_write_flag & ~b_read_flag) begin
@@ -230,7 +236,7 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_fifo_status <= 2'b0;
         end else if (ar_write_flag & ~ar_read_flag) begin
@@ -240,7 +246,7 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_fifo_status <= 2'b0;
         end else if (r_write_flag & ~r_read_flag) begin
@@ -256,7 +262,7 @@ module axi4lite_reg_station #(
     assign s_axi_arready = ~ar_full;
     assign m_axi_rready  = ~r_full ;
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             m_axi_awvalid <= 1'b0;
         end else if ((aw_fifo_status == 1) & aw_read_flag & ~aw_write_flag) begin
@@ -266,7 +272,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             m_axi_wvalid <= 1'b0;
         end else if ((w_fifo_status == 1) & w_read_flag & ~w_write_flag) begin
@@ -276,7 +282,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             s_axi_bvalid <= 1'b0;
         end else if ((b_fifo_status == 1) & b_read_flag & ~b_write_flag) begin
@@ -286,7 +292,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             m_axi_arvalid <= 1'b0;
         end else if ((ar_fifo_status == 1) & ar_read_flag & ~ar_write_flag) begin
@@ -296,7 +302,7 @@ module axi4lite_reg_station #(
         end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             s_axi_rvalid <= 1'b0;
         end else if ((r_fifo_status == 1) & r_read_flag & ~r_write_flag) begin
@@ -313,20 +319,22 @@ module axi4lite_reg_station #(
     assign s_axi_bresp  = b_read  ? b_resp_1  : b_resp_0 ;
     assign m_axi_araddr = ar_read ? ar_addr_1 : ar_addr_0;
     assign m_axi_arprot = ar_read ? ar_prot_1 : ar_prot_0;
-    assign m_axi_rdata  = r_read  ? r_data_1  : r_data_0 ;
+    assign s_axi_rdata  = r_read  ? r_data_1  : r_data_0 ;
     assign s_axi_rresp  = r_read  ? r_resp_1  : r_resp_0 ;
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_addr_0 <= {ADDR_WIDTH{1'b0}};
             aw_prot_0 <= 3'b0;
+            w_err_0   <= 1'b0;
         end else if (aw_write_flag & ~aw_write) begin
 	  	    aw_addr_0 <= s_axi_awaddr;
             aw_prot_0 <= s_axi_awprot;
+            w_err_0   <= err_write_i;
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_data_0 <= {DATA_WIDTH{1'b0}};
             w_strb_0 <= {(DATA_WIDTH / 8){1'b0}};
@@ -336,53 +344,49 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_resp_0 <= 2'b0;
         end else if (b_write_flag & ~b_write) begin
-            if (err_write_i) begin
-                b_resp_0 <= 2'b10;
-            else begin
-	  	        b_resp_0 <= m_axi_bresp;
-            end
-	  	end
+            b_resp_0 <= w_err_0 ? 2'b10 : m_axi_bresp;
+        end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_addr_0 <= {ADDR_WIDTH{1'b0}};
             ar_prot_0 <= 3'b0;
+            r_err_0   <= 1'b0;
         end else if (ar_write_flag & ~ar_write) begin
 	  	    ar_addr_0 <= s_axi_araddr;
             ar_prot_0 <= s_axi_arprot;
+            r_err_0   <= err_read_i;
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_data_0 <= {DATA_WIDTH{1'b0}};
             r_resp_0 <= 2'b0;
         end else if (r_write_flag & ~r_write) begin
 	  	    r_data_0 <= m_axi_rdata;
-            if (err_read_i) begin
-                r_resp_0 <= 2'b10;
-            else begin
-                r_resp_0 <= m_axi_rresp;
-            end
+            r_resp_0 <= r_err_0 ? 2'b10 : m_axi_rresp;
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_addr_1 <= {ADDR_WIDTH{1'b0}};
             aw_prot_1 <= 3'b0;
+            w_err_1   <= 1'b0;
         end else if (aw_write_flag & aw_write) begin
 	  	    aw_addr_1 <= s_axi_awaddr;
             aw_prot_1 <= s_axi_awprot;
+            w_err_1   <= err_write_i;
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_data_1 <= {DATA_WIDTH{1'b0}};
             w_strb_1 <= {(DATA_WIDTH / 8){1'b0}};
@@ -392,38 +396,33 @@ module axi4lite_reg_station #(
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_resp_1 <= 2'b0;
         end else if (b_write_flag & b_write) begin
-            if (err_write_i) begin
-                b_resp_1 <= 2'b10;
-            else begin
-	  	        b_resp_1 <= m_axi_bresp;
-            end
-	  	end
+            b_resp_1 <= w_err_1 ? 2'b10 : m_axi_bresp;
+        end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_addr_1 <= {ADDR_WIDTH{1'b0}};
             ar_prot_1 <= 3'b0;
+            r_err_1   <= 1'b0;
         end else if (ar_write_flag & ar_write) begin
 	  	    ar_addr_1 <= s_axi_araddr;
             ar_prot_1 <= s_axi_arprot;
+            r_err_1   <= err_read_i;
 	  	end
     end
 
-    always @(posedge aclk or negedge aresetn) begin
+    always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_data_1 <= {DATA_WIDTH{1'b0}};
             r_resp_1 <= 2'b0;
         end else if (r_write_flag & r_write) begin
 	  	    r_data_1 <= m_axi_rdata;
-            if (err_read_i) begin
-                r_resp_1 <= 2'b10;
-            else begin
-                r_resp_1 <= m_axi_rresp;
-            end
+            r_resp_1 <= r_err_1 ? 2'b10 : m_axi_rresp;
 	  	end
     end
+endmodule
