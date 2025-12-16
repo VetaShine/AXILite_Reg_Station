@@ -15,6 +15,7 @@ module protocol_checker #(
     input  logic                             s_axi_arvalid,
     input  logic [2 : 0]                     s_axi_arprot ,
 
+    output logic                             err_awrite_o ,
     output logic                             err_write_o  ,
     output logic                             err_read_o
 );
@@ -26,7 +27,8 @@ module protocol_checker #(
 
         wire wstrb_zero = s_axi_wvalid && (s_axi_wstrb == {(DATA_WIDTH / 8){1'b0}});
 
-        assign err_write_o = aw_addr_misaligned || wstrb_zero;
+        assign err_awrite_o = aw_addr_misaligned;
+        assign err_write_o = wstrb_zero;
         assign err_read_o  = ar_addr_misaligned;
     end else begin: get_disabled
         assign err_write_o = 1'b0;
