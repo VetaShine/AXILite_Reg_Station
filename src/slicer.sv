@@ -3,7 +3,8 @@ module slicer #(
     parameter int DATA_WIDTH    = 32
 ) (
     input  logic                             aclk         ,
-    input  logic                             aresetn      ,
+    input  logic                             aresetn	  ,
+    input  logic                             err_awrite_i ,
     input  logic                             err_write_i  ,
     input  logic                             err_read_i   ,
 
@@ -58,229 +59,118 @@ module slicer #(
     input  logic [1 : 0]                     m_axi_rresp
 );
     logic [ADDR_WIDTH - 1 : 0]       aw_addr_0     ;
-    logic [ADDR_WIDTH - 1 : 0]       aw_addr_1     ;
     logic [2 : 0]                    aw_prot_0     ;
-    logic [2 : 0]                    aw_prot_1     ;
     logic [1 : 0]                    aw_fifo_status;
-    logic                            aw_read       ;
-    logic                            aw_write      ;
 
-    logic [DATA_WIDTH - 1 : 0]       w_data_0      ;
-    logic [DATA_WIDTH - 1 : 0]       w_data_1      ;
-    logic [(DATA_WIDTH / 8) - 1 : 0] w_strb_0      ;
-    logic [(DATA_WIDTH / 8) - 1 : 0] w_strb_1      ;
+    logic [DATA_WIDTH - 1 : 0]       w_data_0	   ;
+    logic [(DATA_WIDTH / 8) - 1 : 0] w_strb_0	   ;
     logic [1 : 0]                    w_fifo_status ;
-    logic                            w_read        ;
-    logic                            w_write       ;
 
-    logic [1 : 0]                    b_resp_0      ;
-    logic [1 : 0]                    b_resp_1      ;
+    logic [1 : 0]                    b_resp_0	   ;
     logic [1 : 0]                    b_fifo_status ;
-    logic                            b_read        ;
-    logic                            b_write       ;
 
     logic [ADDR_WIDTH - 1 : 0]       ar_addr_0     ;
-    logic [ADDR_WIDTH - 1 : 0]       ar_addr_1     ;
     logic [2 : 0]                    ar_prot_0     ;
-    logic [2 : 0]                    ar_prot_1     ;
-    logic [1 : 0]                    ar_fifo_status;
-    logic                            ar_read       ;
-    logic                            ar_write      ;
+    logic                            ar_fifo_status;
 
-    logic [DATA_WIDTH - 1 : 0]       r_data_0      ;
-    logic [DATA_WIDTH - 1 : 0]       r_data_1      ;
-    logic [1 : 0]                    r_resp_0      ;
-    logic [1 : 0]                    r_resp_1      ;
-    logic [1 : 0]                    r_fifo_status ;
-    logic                            r_read        ;
-    logic                            r_write       ;
+    logic [DATA_WIDTH - 1 : 0]       r_data_0	   ;
+    logic [1 : 0]                    r_resp_0	   ;
+    logic                            r_fifo_status ;
 
-    logic                            r_err_0       ;
-    logic                            r_err_1       ;
-    logic                            w_err_0       ;
-    logic                            w_err_1       ;
+    logic                            r_err_0	   ;
+    logic                            aw_err_0	   ;
+    logic                            w_err_0	   ;
+    logic                            aw_stored     ;
+    logic                            w_stored      ;
+
 
     assign aw_write_flag = s_axi_awvalid & s_axi_awready;
     assign aw_read_flag  = m_axi_awvalid & m_axi_awready;
-    assign aw_empty      = (aw_fifo_status == 0);
-    assign aw_full       = aw_fifo_status[1];
+    assign aw_empty	     = (aw_fifo_status == 0);
+    assign aw_full	     = aw_fifo_status;
 
     assign w_write_flag  = s_axi_wvalid & s_axi_wready;
     assign w_read_flag   = m_axi_wvalid & m_axi_wready;
-    assign w_empty       = (w_fifo_status == 0);
-    assign w_full        = w_fifo_status[1];
+    assign w_empty	     = (w_fifo_status == 0);
+    assign w_full        = w_fifo_status;
 
     assign b_write_flag  = m_axi_bvalid & m_axi_bready;
     assign b_read_flag   = s_axi_bvalid & s_axi_bready;
-    assign b_empty       = (b_fifo_status == 0);
-    assign b_full        = b_fifo_status[1];
+    assign b_empty	     = (b_fifo_status == 0);
+    assign b_full        = b_fifo_status;
 
     assign ar_write_flag = s_axi_arvalid & s_axi_arready;
     assign ar_read_flag  = m_axi_arvalid & m_axi_arready;
-    assign ar_empty      = (ar_fifo_status == 0);
-    assign ar_full       = ar_fifo_status[1];
+    assign ar_empty	     = (ar_fifo_status == 0);
+    assign ar_full	     = ar_fifo_status;
 
     assign r_write_flag  = m_axi_rvalid & m_axi_rready;
     assign r_read_flag   = s_axi_rvalid & s_axi_rready;
-    assign r_empty       = (r_fifo_status == 0);
-    assign r_full        = r_fifo_status[1];
+    assign r_empty	     = (r_fifo_status == 0);
+    assign r_full        = r_fifo_status;
 
+    assign write_accepted = m_axi_awvalid && m_axi_awready && m_axi_wvalid && m_axi_wready;
+    assign write_ready    = aw_stored && w_stored;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            aw_read <= 1'b0;
-        end else if (aw_read_flag) begin
-            aw_read <= ~aw_read;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            w_read <= 1'b0;
-        end else if (w_read_flag) begin
-            w_read <= ~w_read;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            b_read <= 1'b0;
-        end else if (b_read_flag) begin
-            b_read <= ~b_read;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            ar_read <= 1'b0;
-        end else if (ar_read_flag) begin
-            ar_read <= ~ar_read;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            r_read <= 1'b0;
-        end else if (r_read_flag) begin
-            r_read <= ~r_read;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            aw_write <= 1'b0;
-        end else if (aw_write_flag) begin
-            aw_write <= ~aw_write;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            w_write <= 1'b0;
-        end else if (w_write_flag) begin
-            w_write <= ~w_write;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            b_write <= 1'b0;
-        end else if (b_write_flag) begin
-            b_write <= ~b_write;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            ar_write <= 1'b0;
-        end else if (ar_write_flag) begin
-            ar_write <= ~ar_write;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            r_write <= 1'b0;
-        end else if (r_write_flag) begin
-            r_write <= ~r_write;
-        end
-    end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_fifo_status <= 2'b0;
         end else if (aw_write_flag & ~aw_read_flag) begin
-	  	    aw_fifo_status <= aw_fifo_status + 1'b1;
-	  	end else if (~aw_write_flag & aw_read_flag) begin
-	  	    aw_fifo_status <= aw_fifo_status - 1'b1;
-	  	end
+            aw_fifo_status <= 1'b1;
+        end else if (b_read_flag) begin
+            aw_fifo_status <= 1'b0;
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_fifo_status <= 2'b0;
         end else if (w_write_flag & ~w_read_flag) begin
-	  	    w_fifo_status <= w_fifo_status + 1'b1;
-	  	end else if (~w_write_flag & w_read_flag) begin
-	  	    w_fifo_status <= w_fifo_status - 1'b1;
-	  	end
+            w_fifo_status <= 1'b1;
+        end else if (b_read_flag) begin
+            w_fifo_status <= 1'b0;
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_fifo_status <= 2'b0;
         end else if (b_write_flag & ~b_read_flag) begin
-	  	    b_fifo_status <= b_fifo_status + 1'b1;
-	  	end else if (~b_write_flag & b_read_flag) begin
-	  	    b_fifo_status <= b_fifo_status - 1'b1;
-	  	end
+            b_fifo_status <= 1'b1;
+        end else if (~b_write_flag & b_read_flag) begin
+            b_fifo_status <= 1'b0;
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             ar_fifo_status <= 2'b0;
         end else if (ar_write_flag & ~ar_read_flag) begin
-	  	    ar_fifo_status <= ar_fifo_status + 1'b1;
-	  	end else if (~ar_write_flag & ar_read_flag) begin
-	  	    ar_fifo_status <= ar_fifo_status - 1'b1;
-	  	end
+            ar_fifo_status <= 1'b1;
+        end else if (s_axi_rvalid & s_axi_rready) begin
+            ar_fifo_status <= 1'b0;
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_fifo_status <= 2'b0;
         end else if (r_write_flag & ~r_read_flag) begin
-	  	    r_fifo_status <= r_fifo_status + 1'b1;
-	  	end else if (~r_write_flag & r_read_flag) begin
-	  	    r_fifo_status <= r_fifo_status - 1'b1;
-	  	end
+            r_fifo_status <= 1'b1;
+        end else if (~r_write_flag & r_read_flag) begin
+            r_fifo_status <= 1'b0;
+        end
     end
-    
+
     assign s_axi_awready = ~aw_full;
     assign s_axi_wready  = ~w_full ;
     assign m_axi_bready  = ~b_full ;
     assign s_axi_arready = ~ar_full;
     assign m_axi_rready  = ~r_full ;
 
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            m_axi_awvalid <= 1'b0;
-        end else if ((aw_fifo_status == 1) & aw_read_flag & ~aw_write_flag) begin
-            m_axi_awvalid <= 1'b0;
-        end else if (aw_empty & aw_write_flag & ~aw_read_flag) begin
-            m_axi_awvalid <= 1'b1;
-        end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            m_axi_wvalid <= 1'b0;
-        end else if ((w_fifo_status == 1) & w_read_flag & ~w_write_flag) begin
-            m_axi_wvalid <= 1'b0;
-        end else if (w_empty & w_write_flag & ~w_read_flag) begin
-            m_axi_wvalid <= 1'b1;
-        end
-    end
+    assign m_axi_awvalid = write_ready;
+    assign m_axi_wvalid  = write_ready;
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
@@ -311,44 +201,66 @@ module slicer #(
             s_axi_rvalid <= 1'b1;
         end
     end
-    
-    assign m_axi_awaddr = aw_read ? aw_addr_1 : aw_addr_0;
-    assign m_axi_awprot = aw_read ? aw_prot_1 : aw_prot_0;
-    assign m_axi_wdata  = w_read  ? w_data_1  : w_data_0 ;
-    assign m_axi_wstrb  = w_read  ? w_strb_1  : w_strb_0 ;
-    assign s_axi_bresp  = b_read  ? b_resp_1  : b_resp_0 ;
-    assign m_axi_araddr = ar_read ? ar_addr_1 : ar_addr_0;
-    assign m_axi_arprot = ar_read ? ar_prot_1 : ar_prot_0;
-    assign s_axi_rdata  = r_read  ? r_data_1  : r_data_0 ;
-    assign s_axi_rresp  = r_read  ? r_resp_1  : r_resp_0 ;
+
+    assign m_axi_awaddr = aw_addr_0;
+    assign m_axi_awprot = aw_prot_0;
+    assign m_axi_wdata  = w_data_0 ;
+    assign m_axi_wstrb  = w_strb_0 ;
+    assign s_axi_bresp  = b_resp_0 ;
+    assign m_axi_araddr = ar_addr_0;
+    assign m_axi_arprot = ar_prot_0;
+    assign s_axi_rdata  = r_data_0 ;
+    assign s_axi_rresp  = r_resp_0 ;
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            aw_stored <= 1'b0;
+        end else if (aw_write_flag) begin
+            aw_stored <= 1'b1;
+        end else if (write_accepted) begin
+            aw_stored <= 1'b0;
+        end
+    end
+
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            w_stored  <= 1'b0;
+        end else if (w_write_flag) begin
+            w_stored <= 1'b1;
+        end else if (write_accepted) begin
+            w_stored  <= 1'b0;
+        end
+    end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             aw_addr_0 <= {ADDR_WIDTH{1'b0}};
             aw_prot_0 <= 3'b0;
-            w_err_0   <= 1'b0;
-        end else if (aw_write_flag & ~aw_write) begin
-	  	    aw_addr_0 <= s_axi_awaddr;
+            aw_err_0  <= 1'b0;
+        end else if (aw_write_flag) begin
+            aw_addr_0 <= s_axi_awaddr;
             aw_prot_0 <= s_axi_awprot;
-            w_err_0   <= err_write_i;
-	  	end
+            aw_err_0  <= err_awrite_i;
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             w_data_0 <= {DATA_WIDTH{1'b0}};
             w_strb_0 <= {(DATA_WIDTH / 8){1'b0}};
-        end else if (w_write_flag & ~w_write) begin
-	  	    w_data_0 <= s_axi_wdata;
+            w_err_0  <= 1'b0;
+        end else if (w_write_flag) begin
+            w_data_0 <= s_axi_wdata;
             w_strb_0 <= s_axi_wstrb;
-	  	end
+            w_err_0  <= err_write_i;
+        end
     end
 
-    always_ff @(posedge aclk or negedge aresetn) begin
+        always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             b_resp_0 <= 2'b0;
-        end else if (b_write_flag & ~b_write) begin
-            b_resp_0 <= w_err_0 ? 2'b10 : m_axi_bresp;
+        end else if (b_write_flag) begin
+            b_resp_0 <= (aw_err_0 || w_err_0) ? 2'b10 : m_axi_bresp;
         end
     end
 
@@ -357,72 +269,20 @@ module slicer #(
             ar_addr_0 <= {ADDR_WIDTH{1'b0}};
             ar_prot_0 <= 3'b0;
             r_err_0   <= 1'b0;
-        end else if (ar_write_flag & ~ar_write) begin
-	  	    ar_addr_0 <= s_axi_araddr;
+        end else if (ar_write_flag) begin
+            ar_addr_0 <= s_axi_araddr;
             ar_prot_0 <= s_axi_arprot;
             r_err_0   <= err_read_i;
-	  	end
+        end
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
         if (~aresetn) begin
             r_data_0 <= {DATA_WIDTH{1'b0}};
             r_resp_0 <= 2'b0;
-        end else if (r_write_flag & ~r_write) begin
-	  	    r_data_0 <= m_axi_rdata;
+        end else if (r_write_flag) begin
+            r_data_0 <= m_axi_rdata;
             r_resp_0 <= r_err_0 ? 2'b10 : m_axi_rresp;
-	  	end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            aw_addr_1 <= {ADDR_WIDTH{1'b0}};
-            aw_prot_1 <= 3'b0;
-            w_err_1   <= 1'b0;
-        end else if (aw_write_flag & aw_write) begin
-	  	    aw_addr_1 <= s_axi_awaddr;
-            aw_prot_1 <= s_axi_awprot;
-            w_err_1   <= err_write_i;
-	  	end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            w_data_1 <= {DATA_WIDTH{1'b0}};
-            w_strb_1 <= {(DATA_WIDTH / 8){1'b0}};
-        end else if (w_write_flag & w_write) begin
-	  	    w_data_1 <= s_axi_wdata;
-            w_strb_1 <= s_axi_wstrb;
-	  	end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            b_resp_1 <= 2'b0;
-        end else if (b_write_flag & b_write) begin
-            b_resp_1 <= w_err_1 ? 2'b10 : m_axi_bresp;
         end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            ar_addr_1 <= {ADDR_WIDTH{1'b0}};
-            ar_prot_1 <= 3'b0;
-            r_err_1   <= 1'b0;
-        end else if (ar_write_flag & ar_write) begin
-	  	    ar_addr_1 <= s_axi_araddr;
-            ar_prot_1 <= s_axi_arprot;
-            r_err_1   <= err_read_i;
-	  	end
-    end
-
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (~aresetn) begin
-            r_data_1 <= {DATA_WIDTH{1'b0}};
-            r_resp_1 <= 2'b0;
-        end else if (r_write_flag & r_write) begin
-	  	    r_data_1 <= m_axi_rdata;
-            r_resp_1 <= r_err_1 ? 2'b10 : m_axi_rresp;
-	  	end
     end
 endmodule
