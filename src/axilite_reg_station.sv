@@ -67,6 +67,7 @@ module axi4lite_reg_station #(
     localparam int IRQ_HOLD_TIME_ACTUAL = (IRQ_HOLD_TIME >= 1 && IRQ_HOLD_TIME <= 65536) ? IRQ_HOLD_TIME : 1024;
 
     logic reset      ;
+    logic err_awrite_o;
     logic err_write_o;
     logic err_read_o ;
 
@@ -85,7 +86,7 @@ module axi4lite_reg_station #(
     ) u_irq_gen (
         .aclk   (aclk) ,
         .rstn   (reset),
-        .error_i(err_write_o || err_read_o),
+        .error_i(err_awrite_o || err_write_o || err_read_o),
         .irq_o  (irq_o)
     );
 
@@ -103,6 +104,7 @@ module axi4lite_reg_station #(
         .s_axi_araddr (s_axi_araddr) ,
         .s_axi_arvalid(s_axi_arvalid),
         .s_axi_arprot (s_axi_arprot) ,
+        .err_awrite_o (err_awrite_o)  ,
         .err_write_o  (err_write_o)  ,
         .err_read_o   (err_read_o)
     );
@@ -113,6 +115,7 @@ module axi4lite_reg_station #(
     ) u_slicer (
         .aclk         (aclk)         ,
         .aresetn      (reset)        ,
+        .err_awrite_i (err_awrite_o) ,
         .err_write_i  (err_write_o)  ,
         .err_read_i   (err_read_o)   ,
         .s_axi_awaddr (s_axi_awaddr) ,
