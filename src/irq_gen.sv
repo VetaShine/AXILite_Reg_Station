@@ -29,7 +29,6 @@ module irq_gen #(
                         irq_o  <= 1'b0;
                     end else begin
                         cnt   <= cnt - 1;
-                        irq_o <= 1'b1;
                     end
                 end else begin
                     irq_o <= 1'b0;
