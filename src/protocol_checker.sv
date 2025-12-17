@@ -22,14 +22,9 @@ module protocol_checker #(
     if (ERR_RESP_EN) begin: gen_enabled
         localparam int ALIGN_BITS = $clog2(DATA_WIDTH / 8);
 
-        wire aw_addr_misaligned = s_axi_awvalid && |s_axi_awaddr[ALIGN_BITS - 1 : 0];
-        wire ar_addr_misaligned = s_axi_arvalid && |s_axi_araddr[ALIGN_BITS - 1 : 0];
-
-        wire wstrb_zero = s_axi_wvalid && (s_axi_wstrb == {(DATA_WIDTH / 8){1'b0}});
-
-        assign err_awrite_o = aw_addr_misaligned;
-        assign err_write_o = wstrb_zero;
-        assign err_read_o  = ar_addr_misaligned;
+        assign err_awrite_o = s_axi_awvalid && |s_axi_awaddr[ALIGN_BITS - 1 : 0];
+        assign err_write_o = s_axi_wvalid && (s_axi_wstrb == {(DATA_WIDTH / 8){1'b0}});
+        assign err_read_o  = s_axi_arvalid && |s_axi_araddr[ALIGN_BITS - 1 : 0];
     end else begin: get_disabled
         assign err_awrite_o = 1'b0;
         assign err_write_o  = 1'b0;
