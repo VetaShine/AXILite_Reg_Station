@@ -55,7 +55,6 @@ module axi4lite_reg_station_tb;
     localparam CLK_PERIOD = 10;
     localparam int ALIGN_BITS = $clog2(DATA_WIDTH / 8);
 
-    logic [(DATA_WIDTH / 8) - 1 : 0] wstrb_all_ones;
     logic [(DATA_WIDTH / 8) - 1 : 0] wstrb_all_zeros;
     logic unaligned_addr;
     bit rresp_check_flag = 1'b1;
@@ -72,7 +71,6 @@ module axi4lite_reg_station_tb;
 
 
     initial begin
-        wstrb_all_ones  = {(DATA_WIDTH / 8){1'b1}};
         wstrb_all_zeros = {(DATA_WIDTH / 8){1'b0}};
     end
 
@@ -149,8 +147,10 @@ module axi4lite_reg_station_tb;
                 s_axi_awprot  <= $urandom_range(0, 7);
                 s_axi_awvalid <= 1;
                 @(posedge aclk);
-                while (!s_axi_awready) @(posedge aclk);
-                s_axi_awvalid <= 0;
+                if (bresp_check_flag || !ERR_RESP_EN) begin
+                    while (!s_axi_awready) @(posedge aclk);
+                    s_axi_awvalid <= 0;
+                end
             end
 
             begin
@@ -161,11 +161,13 @@ module axi4lite_reg_station_tb;
                 s_axi_wstrb   <= wstrb;
                 s_axi_wvalid  <= 1;
                 @(posedge aclk);
-                while (!s_axi_wready) @(posedge aclk);
-                s_axi_wvalid <= 0;
+                if (bresp_check_flag || !ERR_RESP_EN) begin
+                    while (!s_axi_wready) @(posedge aclk);
+                    s_axi_wvalid <= 0;
+                end
             end
         join
-        
+
         @(posedge aclk);
         while (!s_axi_bvalid) @(posedge aclk);
         repeat (b_delay) begin
@@ -177,9 +179,10 @@ module axi4lite_reg_station_tb;
 
     task automatic axi_read(input [ADDR_WIDTH - 1 : 0] addr);
         int r_delay;
+        r_delay = $urandom_range(0, 5);
         s_axi_araddr  <= addr;
         s_axi_arvalid <= 1;
-        s_axi_arprot  <= '0;
+        s_axi_arprot  <= $urandom_range(0, 7);
         s_axi_rready  <= 0;
         @(posedge aclk);
         while (!s_axi_arready) @(posedge aclk);
@@ -216,11 +219,16 @@ module axi4lite_reg_station_tb;
     task automatic write_transaction(input bit unaligned_addr_flag, input bit zero_wstrb_flag);
         int unsigned rand_addr;
         int unsigned rand_data;
+        int unsigned rand_wstrb;
+
+        if (!zero_wstrb_flag) begin
+            rand_wstrb = $urandom_range(1, 15);
+        end
 
         rand_data = $urandom();
         rand_addr = unaligned_addr_flag ? rand_unaligned_addr() : rand_aligned_addr();
-        $display("%0t ns: WRITE test with: addr=%h, data=%h, wstrb=%h", $time, rand_addr, rand_data, zero_wstrb_flag ? wstrb_all_zeros : wstrb_all_ones);
-        axi_write(rand_addr, rand_data, zero_wstrb_flag ? wstrb_all_zeros : wstrb_all_ones);
+        $display("%0t ns: WRITE test with: addr=%h, data=%h, wstrb=%h", $time, rand_addr, rand_data, zero_wstrb_flag ? wstrb_all_zeros : rand_wstrb);
+        axi_write(rand_addr, rand_data, zero_wstrb_flag ? wstrb_all_zeros : rand_wstrb);
 
         if ((unaligned_addr_flag || zero_wstrb_flag) && ERR_RESP_EN && s_axi_bresp !== 2'b10) begin
             error_count++;
@@ -256,9 +264,12 @@ module axi4lite_reg_station_tb;
                 end else begin
                     aw_delay--;
                 end
-            end else if (m_axi_awready && m_axi_awvalid) begin
+            end else if ((bresp_check_flag || !ERR_RESP_EN) && m_axi_awready && m_axi_awvalid) begin
                 m_axi_awready <= 0;
                 got_aw        = 1;
+            end else if (!bresp_check_flag && ERR_RESP_EN && m_axi_awvalid) begin
+                error_count++;
+                $error("ERROR: an invalid transaction was sent, m_axi_awvalid=%b", m_axi_awvalid);
             end
 
             if (!m_axi_wready && !got_w) begin
@@ -267,9 +278,12 @@ module axi4lite_reg_station_tb;
                 end else begin
                     w_delay--;
                 end
-            end else if (m_axi_wready && m_axi_wvalid) begin
+            end else if ((bresp_check_flag || !ERR_RESP_EN) && m_axi_wready && m_axi_wvalid) begin
                 m_axi_wready <= 0;
                 got_w        = 1;
+            end else if (!bresp_check_flag && ERR_RESP_EN && m_axi_wvalid) begin
+                error_count++;
+                $error("ERROR: an invalid transaction was sent, m_axi_wvalid=%b", m_axi_wvalid);
             end
 
             if (!m_axi_bvalid && got_aw && got_w) begin
@@ -401,7 +415,7 @@ module axi4lite_reg_station_tb;
         if (error_count == 0) begin
             $display("%0t ns: TEST PASSED", $time);
         end else begin
-            $display("%0t ns: TEST FAILED: error_count=%h", $time, error_count);
+            $display("%0t ns: TEST FAILED: error_count=%d", $time, error_count);
         end
         $finish();
     end
@@ -453,43 +467,55 @@ module axi4lite_reg_station_tb;
     property p_aw_transfer;
         @(posedge aclk)
         disable iff (!aresetn)
-        m_axi_awvalid |=> (m_axi_awaddr == s_axi_awaddr && m_axi_awprot == s_axi_awprot);
+        (s_axi_awvalid && s_axi_awready && (bresp_check_flag || !ERR_RESP_EN)) |-> ##1 (m_axi_awaddr == s_axi_awaddr && m_axi_awprot == s_axi_awprot);
     endproperty
 
     assert property (p_aw_transfer)
         else begin
             error_count++;
-            $error("AW CHANNEL ERROR: s->m translation incorrect");
+            $error("AW CHANNEL ERROR: s->m translation failed");
         end
 
     property p_w_transfer;
         @(posedge aclk)
         disable iff (!aresetn)
-        m_axi_wvalid |=> (m_axi_wdata == s_axi_wdata && m_axi_wstrb == s_axi_wstrb);
+        (s_axi_wvalid && s_axi_wready && (bresp_check_flag || !ERR_RESP_EN)) |-> ##1 (m_axi_wdata == s_axi_wdata && m_axi_wstrb == s_axi_wstrb);
     endproperty
 
     assert property (p_w_transfer)
         else begin
             error_count++;
-            $error("W CHANNEL ERROR: write data not transferred");
+            $error("W CHANNEL ERROR: s->m translation failed");
         end
     
     property p_ar_transfer;
         @(posedge aclk)
         disable iff (!aresetn)
-        (s_axi_arvalid && s_axi_arready) |-> ##1 (m_axi_arvalid && m_axi_araddr == s_axi_araddr && m_axi_arprot == s_axi_arprot);
+        (s_axi_arvalid && s_axi_arready && (rresp_check_flag || !ERR_RESP_EN)) |-> ##1 (m_axi_arvalid && m_axi_araddr == s_axi_araddr && m_axi_arprot == s_axi_arprot);
     endproperty
 
     assert property (p_ar_transfer)
         else begin
             error_count++;
-            $error("AR CHANNEL ERROR: s->m address translation failed");
+            $error("AR CHANNEL ERROR: s->m translation failed");
+        end
+
+    property p_ar_err_transfer;
+        @(posedge aclk)
+        disable iff (!aresetn)
+        (s_axi_arvalid && s_axi_arready && (!rresp_check_flag && ERR_RESP_EN)) |-> ##1 !m_axi_arvalid;
+    endproperty
+
+    assert property (p_ar_err_transfer)
+        else begin
+            error_count++;
+            $error("AR CHANNEL ERROR: a transfer occurred with an invalid input transaction");
         end
 
     property p_r_transfer;
         @(posedge aclk)
         disable iff (!aresetn)
-        (m_axi_rvalid && m_axi_rready) |-> ##1 (s_axi_rvalid && s_axi_rdata == m_axi_rdata && (!rresp_check_flag || (s_axi_rresp == m_axi_rresp)));
+        (m_axi_rvalid && m_axi_rready && (rresp_check_flag || !ERR_RESP_EN)) |-> ##1 (s_axi_rvalid && s_axi_rdata == m_axi_rdata && s_axi_rresp == m_axi_rresp);
     endproperty
 
     assert property (p_r_transfer)
@@ -501,7 +527,7 @@ module axi4lite_reg_station_tb;
     property p_b_transfer;
         @(posedge aclk)
         disable iff (!aresetn)
-        (m_axi_bvalid && m_axi_bready) |-> ##1 (s_axi_bvalid && (!bresp_check_flag || (s_axi_bresp == m_axi_bresp)));
+        (m_axi_bvalid && m_axi_bready && (bresp_check_flag || !ERR_RESP_EN)) |-> ##1 (s_axi_bvalid && s_axi_bresp == m_axi_bresp);
     endproperty
 
     assert property(p_b_transfer)
