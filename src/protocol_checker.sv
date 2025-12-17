@@ -31,7 +31,8 @@ module protocol_checker #(
         assign err_write_o = wstrb_zero;
         assign err_read_o  = ar_addr_misaligned;
     end else begin: get_disabled
-        assign err_write_o = 1'b0;
-        assign err_read_o  = 1'b0;
+        assign err_awrite_o = 1'b0;
+        assign err_write_o  = 1'b0;
+        assign err_read_o   = 1'b0;
     end
 endmodule
